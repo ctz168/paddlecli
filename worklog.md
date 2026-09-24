@@ -97,3 +97,20 @@
 - pytest 47/47 全绿；gen_notebooks.py 断言全过（writefile 字节一致 + 新函数标记 + 语法检查）
 - 污染环境烟测：`PIP_INDEX_URL/PIP_EXTRA_INDEX_URL=403百度镜像 + 假 pip.conf` 下安装 cell 一把成功
 - wheel 离线安装烟测：`pip install /tmp/aitun-4.12.4-py3-none-any.whl --no-index` 成功，`aitun` 入口与 `python -m aitun.cli` 均可运行
+
+## 2026-09-24 - PaddleCLI v2.1.4 补丁（入口全面探测，修复误报）
+
+### 真机反馈暴露的问题（用户跑 v2.1.3 热修 cell）
+- ① 清华源 pip 退出码 0（无报错），但 shutil.which('aitun') 找不到入口 → 触发 wheel 兜底
+- 兜底又踩坑：聊天版热修 cell 把 wheel 存成 /tmp/aitun.whl，pip 校验 wheel 文件名五段格式拒收
+  （仓库版无此 bug——沙箱测试保留原始文件名 aitun-4.12.4-py3-none-any.whl）
+- 根因：Jupyter 内核 PATH 常缺 ~/.local/bin，pip --user 装的入口 which 漏检 → 安装 cell 误报失败
+
+### v2.1.4 修复
+1. 安装 cell 新增 _find_entry()：PATH → ~/.local/bin → sysconfig scripts 目录 → import aitun 模块兜底，
+   与隧道 cell find_aitun() 同逻辑；安装结果判定 / 镜像循环 break 条件全部换用它，成功时打印入口
+2. 隧道 cell banner 版本注释同步 v2.1.4；README FAQ 双语补充入口探测说明
+
+### 验证
+- pytest 47/47 全绿；gen_notebooks.py 断言全过（+ _find_entry 标记）
+- 分支测试：monkeypatch shutil.which=None 后 _find_entry() 经 scripts 目录命中 /home/z/.venv/bin/aitun
