@@ -3,7 +3,7 @@
 [![Run on AI Studio](https://img.shields.io/badge/Run%20on-Baidu%20AI%20Studio-2932e1?logo=baidu)](https://aistudio.baidu.com/)
 [![GitHub](https://img.shields.io/badge/GitHub-ctz168%2Fpaddlecli-blue?logo=github)](https://github.com/ctz168/paddlecli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.1.2-green.svg)](https://github.com/ctz168/paddlecli)
+[![Version](https://img.shields.io/badge/version-2.1.3-green.svg)](https://github.com/ctz168/paddlecli)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 
 A powerful command-line tool to run Jupyter Notebooks on **Baidu AI Studio** with streaming output per cell.
@@ -368,7 +368,7 @@ The two are wire-compatible: any colabcli or paddlecli server can be driven by e
 ## ❓ FAQ
 
 **Q: `aitun` not found / install fails in an AI Studio cell?**
-A: Since v2.1.2 the notebooks bootstrap themselves end to end: the install cell self-checks `aitun` and retries via Tsinghua / Aliyun / official mirrors; the start cell tries PATH, `~/.local/bin`, the env scripts dir and the `python -m aitun.cli` module fallback; if pip fails on every mirror, it downloads the native binary directly from `aitun.cc/downloads` (the very binary bundled in the aitun wheel). The heartbeat loop keeps retrying too. Recommended manual install on China networks: `pip install aitun -i https://pypi.tuna.tsinghua.edu.cn/simple`, or switch to the registration-free cloudflared: `cloudflared tunnel --url http://localhost:5000`.
+A: v2.1.3 is hardened against AI Studio's egress network as measured on a real machine: the `pypi.org` index is reachable but the package-file host `files.pythonhosted.org` is cut off (curl returns 000), `mirror.baidu.com` answers 403 for aitun, while the Tsinghua / Aliyun mirrors are fully reachable and serve files from their own domains. Since v2.1.3 the notebooks therefore: (1) strip platform-injected `PIP_*` env vars and pip.conf from every pip subprocess (a stale 403 extra-index can poison resolution) and pass explicit `--trusted-host` flags; (2) try Tsinghua first, Aliyun next, official last; (3) if pip fails everywhere, parse the TUNA `/simple/aitun/` page, direct-download the newest wheel and install it offline with `--no-index` (the aitun wheel has zero dependencies); (4) keep the native-binary direct download from `aitun.cc/downloads` as the last resort. pip errors are no longer swallowed — the tail of the log is printed on failure. Manual install: `pip install aitun -i https://pypi.tuna.tsinghua.edu.cn/simple`, or switch to the registration-free cloudflared: `cloudflared tunnel --url http://localhost:5000`.
 
 **Q: Why do I see "Cannot run import torch because of system compatibility"?**
 A: That is an AI Studio platform policy — PaddlePaddle-only environments intercept `import torch` and print this banner. Since v2.1.1 the server's VRAM cleanup probes frameworks silently, so the banner no longer appears from the server itself. If you see it in your own remote code, that code imports torch — on AI Studio switch to the PaddlePaddle ecosystem (PaddleNLP / PaddleOCR / PaddleDetection, etc.), or run torch code locally instead.

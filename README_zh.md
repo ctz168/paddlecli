@@ -3,7 +3,7 @@
 [![Run on AI Studio](https://img.shields.io/badge/Run%20on-Baidu%20AI%20Studio-2932e1?logo=baidu)](https://aistudio.baidu.com/)
 [![GitHub](https://img.shields.io/badge/GitHub-ctz168%2Fpaddlecli-blue?logo=github)](https://github.com/ctz168/paddlecli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.1.2-green.svg)](https://github.com/ctz168/paddlecli)
+[![Version](https://img.shields.io/badge/version-2.1.3-green.svg)](https://github.com/ctz168/paddlecli)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 
 一个强大的命令行工具，在**百度 AI Studio** 上运行 Jupyter Notebook，支持按 cell 流式输出。
@@ -368,7 +368,7 @@ CLI 的 `exec --json` 已自动完成"信封请求 + respenc 响应 + 纯 ASCII 
 ## ❓ 常见问题
 
 **Q: AI Studio 上运行 notebook cell 时 `aitun` 找不到 / 安装失败？**
-A: v2.1.2 起 notebook 全自动自举：安装 cell 自检 aitun，缺包时按 清华 / 阿里云 / 官方 多镜像重装；启动 cell 依次尝试 PATH、`~/.local/bin`、环境 scripts 目录与 `python -m aitun.cli` 模块方式；若 pip 各镜像全败，还会从 `aitun.cc/downloads` 直连下载原生二进制兜底（aitun wheel 内嵌的正是该二进制）。保活循环也会持续重试。手动安装推荐国内镜像：`pip install aitun -i https://pypi.tuna.tsinghua.edu.cn/simple`，或改用免注册的 cloudflared：`cloudflared tunnel --url http://localhost:5000`。
+A: v2.1.3 已针对真机实测的 AI Studio 出口网络全面加固。实测特征：`pypi.org` 索引可达但包文件域名 `files.pythonhosted.org` 被掐断（curl 返回 000）、`mirror.baidu.com` 对 aitun 返回 403、清华 / 阿里镜像完全可达且文件走镜像自身域名。因此 notebook 从 v2.1.3 起：① 所有 pip 子进程剥离平台注入的 `PIP_*` 环境变量与 pip.conf（避免 403 的 extra-index 拖垮整个解析），显式传 `--trusted-host`；② 清华源优先、阿里源其次、官方源仅兜底；③ pip 全败时自动解析清华 `/simple/aitun/` 页面，直连下载最新 wheel 并以 `--no-index` 离线安装（aitun wheel 零依赖，完全不碰索引）；④ 最后保留 `aitun.cc/downloads` 原生二进制直连。报错不再静默（`-q` 失败时透传 pip 尾部日志）。手动安装：`pip install aitun -i https://pypi.tuna.tsinghua.edu.cn/simple`，或改用免注册的 cloudflared：`cloudflared tunnel --url http://localhost:5000`。
 
 **Q: 日志里出现 "Cannot run import torch because of system compatibility"？**
 A: 这是 AI Studio 的平台策略 —— PaddlePaddle 专用环境拦截 `import torch` 并打印该横幅。v2.1.1 起服务器的显存清理已改为静默探测，不再刷出该横幅；若你在自己远程执行的代码里看到它，说明那段代码用了 torch，AI Studio 上请改用 PaddlePaddle 生态（PaddleNLP / PaddleOCR / PaddleDetection 等），或改在本地运行 torch 代码。

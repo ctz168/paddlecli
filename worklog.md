@@ -77,3 +77,23 @@
 - 百度源：aitun 不存在（复现根因）→ 清华源：海外 IP 403（国内网络正常）→ 后续源装上 console script
 - ensure_aitun() 返回 `/home/z/.venv/bin/aitun`，真实隧道建立 `https://aitun.cc/7JJJEDAU`，URL 正则命中 —— END-TO-END OK
 - 版本 2.1.1 → 2.1.2 全套统一；pytest 47/47 全绿；README FAQ（zh/en）更新多镜像 + 二进制兜底说明
+
+## 2026-09-24 - PaddleCLI v2.1.3 补丁（AI Studio 出口网络真机实测加固）
+
+### 真机诊断结论（用户提供 curl 实测）
+- `mirror.baidu.com/pypi/simple/aitun/` → **403**（百度镜像无 aitun 或拒绝 listing）
+- `pypi.tuna.tsinghua.edu.cn/simple/aitun/` → **200**；`mirrors.aliyun.com/pypi/simple/aitun/` → **200**
+- `pypi.org/simple/aitun/` → **200**，但 `files.pythonhosted.org` → **000**（索引可达、包文件域名被掐 → 官方源装任何包必失败，v2.1.1 官方源重试方案的死因）
+- 结论：不是 pip 被整体禁止，是官方文件域名被墙 + 百度镜像 403；清华/阿里路是通的
+
+### v2.1.3 修复
+1. **pip 环境消毒**：安装 cell 与隧道 cell 所有 pip 子进程剥离 `PIP_*` 环境变量 + `PIP_CONFIG_FILE=os.devnull`（防平台注入的 403 extra-index 污染解析），显式 `--trusted-host` ×5、`--timeout 120 --retries 2`
+2. **清华优先**：MIRRORS/PIP_INDEXES 改为 清华→阿里→官方（百度镜像移出 aitun 安装链）；flask/aitun/requests/psutil 一把从清华装齐，flask 缺失时阿里重试
+3. **新增清华 wheel 直连兜底 `_wheel_fallback()`**：pip 全败时解析清华 `/simple/aitun/` 页面取最新 wheel（aitun-4.12.4-py3-none-any.whl，31MB，实测零依赖），分块下载后 `--no-index` 离线安装，完全不碰 pip 索引
+4. **报错透传**：pip 重试去掉静默 `-q`，失败时打印 stderr 尾部 500 字符
+5. 版本 2.1.2 → 2.1.3 全套统一；README FAQ（zh/en）重写 aitun 问题条目
+
+### 验证
+- pytest 47/47 全绿；gen_notebooks.py 断言全过（writefile 字节一致 + 新函数标记 + 语法检查）
+- 污染环境烟测：`PIP_INDEX_URL/PIP_EXTRA_INDEX_URL=403百度镜像 + 假 pip.conf` 下安装 cell 一把成功
+- wheel 离线安装烟测：`pip install /tmp/aitun-4.12.4-py3-none-any.whl --no-index` 成功，`aitun` 入口与 `python -m aitun.cli` 均可运行
