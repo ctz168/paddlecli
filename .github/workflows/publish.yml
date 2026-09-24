@@ -6,6 +6,11 @@ on:
       - 'v*'
   workflow_dispatch:
 
+env:
+  # secrets may be referenced here (workflow-level env); step-level
+  # `if:` cannot reference the secrets context directly.
+  HAS_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN != '' }}
+
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
@@ -41,14 +46,14 @@ jobs:
       # otherwise fall back to PyPI trusted publishing (must be
       # registered once at pypi.org/manage/account/publishing/).
       - name: Publish to PyPI (API token)
-        if: ${{ secrets.PYPI_API_TOKEN != '' }}
+        if: env.HAS_PYPI_TOKEN == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Publish to PyPI (trusted publishing)
-        if: ${{ secrets.PYPI_API_TOKEN == '' }}
+        if: env.HAS_PYPI_TOKEN != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Create GitHub Release
