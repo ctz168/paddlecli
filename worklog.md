@@ -43,3 +43,22 @@
 2. **publish.yml 启动失败（total_jobs=0）**：step 级 `if:` 不允许 `secrets` 上下文 → 改为 workflow 级 `env.HAS_PYPI_TOKEN` 间接判断
 3. **PyPI 上传步骤失败（预期）**：trusted publishing 需仓库所有者在 pypi.org/manage/account/publishing 登记 pending publisher（GitHub token 无法代办）；登记后重跑 workflow 即可，或改配 `PYPI_API_TOKEN` secret（workflow 已二选一兼容）
 4. **GitHub Release v2.1.0 已创建**（`if: always()` 保证 tag 必出 Release）
+
+## 2026-09-24 - PaddleCLI v2.1.1 补丁（aitun 自举 + torch 横幅抑制）
+
+### 问题报告（AI Studio 真机）
+1. 启动隧道 cell 报 `FileNotFoundError: 'aitun'` —— AI Studio 默认 pip 源未同步 aitun，`!pip install ... -q` 失败不中断后续 cell，直到 Popen 才暴露
+2. 日志刷 "Cannot run import torch because of system compatibility" —— AI Studio 平台策略：Paddle 专用环境拦截 `import torch` 并打印横幅，服务器 /cleanup 每次显存清理都触发
+
+### 修复
+1. **安装 cell**：`!pip install` 改为 Python cell —— 先默认源安装全部依赖，`shutil.which('aitun')` 自检失败时自动用官方 PyPI 源（`-i https://pypi.org/simple`）重装 aitun，双语打印就绪/失败状态
+2. **启动 cell（aitun 自举）**：新增 `find_aitun()`（which → `~/.local/bin` → 环境 scripts 目录 → `python -m aitun.cli` 模块兜底）与 `ensure_aitun()`（缺包自动 pip 重装，默认源→官方源）；隧道与心跳重启统一使用解析到的命令；心跳循环 None 安全 + try/except；aitun 彻底不可用时打印双语修复指引后 SystemExit(1)
+3. **/cleanup 静默探测**：paddle/torch 的 import 探测包进 `contextlib.redirect_stdout/stderr`，AI Studio 横幅不再刷屏（paddle 清理逻辑保留）
+4. 实测验证：aitun 4.12.4 wheel 内嵌 linux-amd64 二进制；`python -m aitun.cli -p 5000` 真实隧道输出 `Proxy URL: https://aitun.cc/XXXX`，与 URL 正则匹配
+5. all-in-one（paddlecli.ipynb）同步自举逻辑；版本号 `__VER__` 占位符化
+
+### 版本与验证
+- 版本 2.1.0 → 2.1.1：`__init__` / executor User-Agent / pyproject / paddle_server.py（/health version + 启动横幅）/ tests 断言 / README×3 徽章 / notebook 标题
+- pytest 47/47 全绿；本地烟测 /health、/cleanup 通过且服务器日志无横幅
+- gen_notebooks.py 断言：writefile == 磁盘 paddle_server.py（双 notebook）+ 隧道 cell 含 ensure_aitun
+- README FAQ 更新（zh/en）：aitun 自举说明 + torch 横幅成因与替代方案（PaddleNLP/PaddleOCR 等）

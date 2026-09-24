@@ -338,7 +338,7 @@ def _sce_respenc(response):
 def index():
     return jsonify({
         "name": "PaddleCLI Server",
-        "version": "2.1.0",
+        "version": "2.1.1",
         "status": "running",
         "uptime_minutes": round((time.time() - start_time) / 60, 2),
         "current_directory": execution_state["current_directory"],
@@ -809,19 +809,24 @@ def cleanup():
     runtime_variables = {}
     gc.collect()
 
-    try:
-        import paddle
-        if paddle.device.is_compiled_with_cuda():
-            paddle.device.cuda.empty_cache()
-    except:
-        pass
+    # 静默探测框架：AI Studio 会拦截 import torch 并打印兼容性横幅（v2.1.1 修复）
+    # Silent framework probe: AI Studio intercepts `import torch` with a banner (fixed in v2.1.1)
+    import contextlib
+    import io as _io
+    with contextlib.redirect_stdout(_io.StringIO()), contextlib.redirect_stderr(_io.StringIO()):
+        try:
+            import paddle
+            if paddle.device.is_compiled_with_cuda():
+                paddle.device.cuda.empty_cache()
+        except Exception:
+            pass
 
-    try:
-        import torch
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-    except:
-        pass
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
 
     mem = psutil.virtual_memory()
     return jsonify({
@@ -843,7 +848,7 @@ if __name__ == '__main__':
     print("\n" + "="*60)
     print(t('server_starting'))
     print("="*60)
-    print(t('server_version', version='2.1.0'))
+    print(t('server_version', version='2.1.1'))
     print(t('server_features', features='Heartbeat + Error isolation + Interrupt + Status tracking + SSE streaming'))
     print(t('server_optimization', optimization='Long-task stability + Non-blocking heartbeat + 600s timeout'))
     print("="*60 + "\n")

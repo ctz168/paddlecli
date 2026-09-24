@@ -3,7 +3,7 @@
 [![Run on AI Studio](https://img.shields.io/badge/Run%20on-Baidu%20AI%20Studio-2932e1?logo=baidu)](https://aistudio.baidu.com/)
 [![GitHub](https://img.shields.io/badge/GitHub-ctz168%2Fpaddlecli-blue?logo=github)](https://github.com/ctz168/paddlecli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.1.0-green.svg)](https://github.com/ctz168/paddlecli)
+[![Version](https://img.shields.io/badge/version-2.1.1-green.svg)](https://github.com/ctz168/paddlecli)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 
 A powerful command-line tool to run Jupyter Notebooks on **Baidu AI Studio** with streaming output per cell.
@@ -368,7 +368,10 @@ The two are wire-compatible: any colabcli or paddlecli server can be driven by e
 ## ❓ FAQ
 
 **Q: `aitun` not found in an AI Studio cell?**
-A: Run the install cell first (`!pip install flask aitun requests psutil -q`). If the AI Studio mirror lacks `aitun`, add `-i https://pypi.org/simple`.
+A: Since v2.1.1 the notebooks bootstrap themselves: the install cell self-checks `aitun` and retries via the official PyPI index when the default mirror lacks it; the start cell tries `~/.local/bin`, the env scripts dir and the `python -m aitun.cli` module fallback when the entry is off PATH, and the heartbeat loop keeps retrying. If all else fails, run manually: `pip install aitun -i https://pypi.org/simple`, or switch to the registration-free cloudflared: `cloudflared tunnel --url http://localhost:5000`.
+
+**Q: Why do I see "Cannot run import torch because of system compatibility"?**
+A: That is an AI Studio platform policy — PaddlePaddle-only environments intercept `import torch` and print this banner. Since v2.1.1 the server's VRAM cleanup probes frameworks silently, so the banner no longer appears from the server itself. If you see it in your own remote code, that code imports torch — on AI Studio switch to the PaddlePaddle ecosystem (PaddleNLP / PaddleOCR / PaddleDetection, etc.), or run torch code locally instead.
 
 **Q: Tunnel unreachable / URL expired?**
 A: The tunnel URL changes whenever the process restarts. Check the latest URL printed in the notebook; the keep-alive loop reconnects and prints `[Restart] New URL`. You can also switch to cloudflared: `cloudflared tunnel --url http://localhost:5000`.
