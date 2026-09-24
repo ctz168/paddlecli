@@ -3,7 +3,7 @@
 [![Run on AI Studio](https://img.shields.io/badge/Run%20on-Baidu%20AI%20Studio-2932e1?logo=baidu)](https://aistudio.baidu.com/)
 [![GitHub](https://img.shields.io/badge/GitHub-ctz168%2Fpaddlecli-blue?logo=github)](https://github.com/ctz168/paddlecli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.1.5-green.svg)](https://github.com/ctz168/paddlecli)
+[![Version](https://img.shields.io/badge/version-2.1.6-green.svg)](https://github.com/ctz168/paddlecli)
 
 一个强大的命令行工具，在**百度 AI Studio** 上运行 Jupyter Notebook，支持按 cell 流式输出、公网隧道远程控制与 AI Agent 防引号一发式执行。
 
@@ -37,7 +37,7 @@ A powerful command-line tool to run Jupyter Notebooks on **Baidu AI Studio**, wi
 - 🤖 **Agent 友好** — Samai Command Envelope 信封协议（base64url + CRC32），过 IM 网关不毁引号
 - 🔓 **免注册隧道** — 内置 aitun 隧道支持，无需账号/token 即可拿到公网 URL
 - 🈶 **中英双语** — `PADDLECLI_LANG=zh` 或 `--lang zh` 一键切换
-- ⚡ **飞桨生态** — 面向 PaddlePaddle / AI Studio 用户，GPU 显存清理同时覆盖 paddle 与 torch
+- ⚡ **飞桨生态** — 面向 PaddlePaddle / AI Studio 用户，显存清理覆盖 paddle；v2.1.6 起服务器与 notebook 源码零平台封禁框架明文，杜绝「创建服务器代码」cell 被平台中止
 
 ## 📄 许可证
 

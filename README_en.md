@@ -3,7 +3,7 @@
 [![Run on AI Studio](https://img.shields.io/badge/Run%20on-Baidu%20AI%20Studio-2932e1?logo=baidu)](https://aistudio.baidu.com/)
 [![GitHub](https://img.shields.io/badge/GitHub-ctz168%2Fpaddlecli-blue?logo=github)](https://github.com/ctz168/paddlecli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.1.5-green.svg)](https://github.com/ctz168/paddlecli)
+[![Version](https://img.shields.io/badge/version-2.1.6-green.svg)](https://github.com/ctz168/paddlecli)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 
 A powerful command-line tool to run Jupyter Notebooks on **Baidu AI Studio** with streaming output per cell.
@@ -80,7 +80,7 @@ paddlecli stream notebook.ipynb -u https://xxxx.a.itun.im/xxxx
 - 🔄 **Magic command translation** — remote mode auto-converts `%cd`, `%env`, `%pip install`, `!cmd`, `%%writefile`, `%%bash`, etc. into remotely runnable Python
 - ⏹️ **Interrupt & status** — `interrupt` stops the running code (not the server); `status`/`history`/`watch` report what's going on
 - 🧠 **Stateful sessions** — executed variables stay in server memory across requests; `/variables` shows types/shapes
-- 🧹 **GPU/memory cleanup** — `/cleanup` clears CUDA caches of both PaddlePaddle and PyTorch
+- 🧹 **GPU/memory cleanup** — `/cleanup` clears PaddlePaddle's CUDA cache (since v2.1.6 the PyTorch probe is gone: AI Studio aborts cells containing its literal import, and cross-process cache release is a no-op anyway)
 
 ### AI-agent friendly (v2.1.0)
 
@@ -342,7 +342,7 @@ The server (`paddle_server.py`) exposes:
 | `/history` | GET | command history (`?limit=N`, max 100) |
 | `/variables` | GET | saved variables (type/shape/length) |
 | `/files` | GET | list files in a directory (`?dir=`) |
-| `/cleanup` | POST | clear variables + gc + flush Paddle/PyTorch CUDA caches |
+| `/cleanup` | POST | clear variables + gc + flush Paddle CUDA cache |
 
 All endpoints support `?respenc=b64url`. In JSON mode the code may contain `!shell` lines and magics — the server follows the same path as CLI `remote`/`stream`.
 
@@ -358,7 +358,7 @@ All endpoints support `?respenc=b64url`. In JSON mode the code may contain `!she
 | CLI package | `colabmcp_cli` | `paddlemcp_cli` |
 | Language env var | `COLABMCP_LANG` | `PADDLECLI_LANG` |
 | Server default dir | `/content` | `/home/aistudio` |
-| GPU cache cleanup | torch | paddle + torch |
+| GPU cache cleanup | torch | paddle (since v2.1.6) |
 | Envelope / SSE / CLI usage | ✅ | ✅ identical |
 
 The two are wire-compatible: any colabcli or paddlecli server can be driven by either CLI using the same API.
@@ -370,8 +370,8 @@ The two are wire-compatible: any colabcli or paddlecli server can be driven by e
 **Q: `aitun` not found / install fails in an AI Studio cell?**
 A: v2.1.3 is hardened against AI Studio's egress network as measured on a real machine: the `pypi.org` index is reachable but the package-file host `files.pythonhosted.org` is cut off (curl returns 000), `mirror.baidu.com` answers 403 for aitun, while the Tsinghua / Aliyun mirrors are fully reachable and serve files from their own domains. Since v2.1.3 the notebooks therefore: (1) strip platform-injected `PIP_*` env vars and pip.conf from every pip subprocess (a stale 403 extra-index can poison resolution) and pass explicit `--trusted-host` flags; (2) try Tsinghua first, Aliyun next, official last; (3) if pip fails everywhere, parse the TUNA `/simple/aitun/` page, direct-download the newest wheel and install it offline with `--no-index` (the aitun wheel has zero dependencies); (4) keep the native-binary direct download from `aitun.cc/downloads` as the last resort. pip errors are no longer swallowed — the tail of the log is printed on failure. Manual install: `pip install aitun -i https://pypi.tuna.tsinghua.edu.cn/simple`, or switch to the registration-free cloudflared: `cloudflared tunnel --url http://localhost:5000`.
 
-**Q: Why do I see "Cannot run import torch because of system compatibility"?**
-A: That is an AI Studio platform policy — PaddlePaddle-only environments intercept `import torch` and print this banner. Since v2.1.1 the server's VRAM cleanup probes frameworks silently (`redirect_stdout/stderr`), but on real machines the banner may still be printed by the platform at a lower level (file-descriptor level) that Python-side redirection cannot fully capture. It is cosmetic and harmless — ignore it. If you see it in your own remote code, that code imports torch — on AI Studio switch to the PaddlePaddle ecosystem (PaddleNLP / PaddleOCR / PaddleDetection, etc.), or run torch code locally instead.
+**Q: Why do I see "Cannot run import torch because of system compatibility" followed by SystemExit: 1?**
+A: That is an AI Studio platform policy — before executing a cell, the platform scans its source and aborts any cell containing a literal import of a certain deep-learning framework (compat banner + SystemExit(1)). In v2.1.5 and earlier the real tripwire was the VRAM-cleanup probe inside the `/cleanup` route: its import statement rode along inside the embedded server source of the "Create Server Code" (%%writefile) cell, so the platform killed that cell every single time, `paddle_server.py` was never written — and that was the true cause of the "instant-death + endless restart" Flask loop with aitun reporting "local service not available" (nothing existed for the server command to run). v2.1.6 removes that framework's literal token from the server source and every notebook cell (cross-process CUDA cache release was a no-op anyway, so the probe had no value), and the start cell now detects stale server files and labels deliberate aborts as non-crashes. If you see the banner in your own remotely executed code, that code imports torch — on AI Studio switch to the PaddlePaddle ecosystem (PaddleNLP / PaddleOCR / PaddleDetection, etc.), or run it locally.
 
 **Q: Flask keeps flapping "stopped"/restarting and aitun says "No service is listening on localhost:5000", yet no error is shown?**
 A: In v2.1.4 and earlier, the start cell piped the Flask subprocess's stdout/stderr into a pipe nobody read, so a crash-on-startup traceback was swallowed entirely and the keep-alive loop just restarted blindly. v2.1.5 fixes this for good: (1) a pre-flight check — whether `paddle_server.py` exists in the current directory (skipping the "Create Server Code" %%writefile cell is the most common cause), and whether flask/psutil truly import from the subprocess's point of view: if the inherited env fails but a sanitized env works, the platform-injected `PYTHONPATH` is stripped automatically (stale/broken copies under external-libraries can shadow pip-installed deps — an in-kernel `__import__` probe cannot see this); (2) the Flask output is teed to `paddle_server.log`, and the log tail is printed whenever the health handshake fails within 15s, the process exits abnormally, or before every restart. Fix: switch to the v2.1.5 notebooks; on older versions run `!python paddle_server.py` in the foreground for ~8s to see the crash directly.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "paddlecli"
-version = "2.1.5"
+version = "2.1.6"
 description = "CLI tool to run Jupyter Notebooks (.ipynb) on Baidu AI Studio with streaming output per cell"
 readme = "README.md"
 license = {text = "MIT"}

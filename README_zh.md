@@ -3,7 +3,7 @@
 [![Run on AI Studio](https://img.shields.io/badge/Run%20on-Baidu%20AI%20Studio-2932e1?logo=baidu)](https://aistudio.baidu.com/)
 [![GitHub](https://img.shields.io/badge/GitHub-ctz168%2Fpaddlecli-blue?logo=github)](https://github.com/ctz168/paddlecli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.1.5-green.svg)](https://github.com/ctz168/paddlecli)
+[![Version](https://img.shields.io/badge/version-2.1.6-green.svg)](https://github.com/ctz168/paddlecli)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 
 一个强大的命令行工具，在**百度 AI Studio** 上运行 Jupyter Notebook，支持按 cell 流式输出。
@@ -80,7 +80,7 @@ paddlecli stream notebook.ipynb -u https://xxxx.a.itun.im/xxxx
 - 🔄 **magic 命令转换** — 远程模式下自动把 `%cd`、`%env`、`%pip install`、`!cmd`、`%%writefile`、`%%bash` 等转换为可远程执行的 Python
 - ⏹️ **中断与状态** — 随时 `interrupt` 中断远程执行（不动服务器本身），`status`/`history`/`watch` 观察运行状态
 - 🧠 **变量与会话保持** — 执行过的变量驻留服务器内存，跨请求复用；`/variables` 查看形状与长度
-- 🧹 **显存/内存清理** — `/cleanup` 同时清理 paddle 与 torch 的 CUDA 缓存
+- 🧹 **显存/内存清理** — `/cleanup` 清理 paddle 的 CUDA 缓存（v2.1.6 起不再探测 torch：AI Studio 会中止含其明文 import 的单元格，且跨进程释放缓存本就无效）
 
 ### AI Agent 友好（v2.1.0）
 
@@ -342,7 +342,7 @@ CLI 的 `exec --json` 已自动完成"信封请求 + respenc 响应 + 纯 ASCII 
 | `/history` | GET | 命令历史（`?limit=N`，最多 100） |
 | `/variables` | GET | 已保存变量（类型/形状/长度） |
 | `/files` | GET | 列出当前目录文件（`?dir=` 指定目录） |
-| `/cleanup` | POST | 清空变量 + gc + 清理 paddle/torch CUDA 缓存 |
+| `/cleanup` | POST | 清空变量 + gc + 清理 paddle CUDA 缓存 |
 
 所有端点均支持 `?respenc=b64url` 响应保护。JSON 模式下代码可以包含 `!shell` 与 magic 命令，服务器按 CLI `remote`/`stream` 的同一条路径执行。
 
@@ -358,7 +358,7 @@ CLI 的 `exec --json` 已自动完成"信封请求 + respenc 响应 + 纯 ASCII 
 | CLI 包 | `colabmcp_cli` | `paddlemcp_cli` |
 | 语言环境变量 | `COLABMCP_LANG` | `PADDLECLI_LANG` |
 | 服务器默认目录 | `/content` | `/home/aistudio` |
-| 显存清理 | torch | paddle + torch |
+| 显存清理 | torch | paddle（v2.1.6 起） |
 | 信封协议 / SSE / CLI 用法 | ✅ | ✅ 完全一致 |
 
 二者协议互通：只要服务器端是 colabcli 或 paddlecli 之一，任何一家的 CLI 都可以按相同 API 连接执行。
@@ -370,8 +370,8 @@ CLI 的 `exec --json` 已自动完成"信封请求 + respenc 响应 + 纯 ASCII 
 **Q: AI Studio 上运行 notebook cell 时 `aitun` 找不到 / 安装失败？**
 A: v2.1.3 已针对真机实测的 AI Studio 出口网络全面加固。实测特征：`pypi.org` 索引可达但包文件域名 `files.pythonhosted.org` 被掐断（curl 返回 000）、`mirror.baidu.com` 对 aitun 返回 403、清华 / 阿里镜像完全可达且文件走镜像自身域名。因此 notebook 从 v2.1.3 起：① 所有 pip 子进程剥离平台注入的 `PIP_*` 环境变量与 pip.conf（避免 403 的 extra-index 拖垮整个解析），显式传 `--trusted-host`；② 清华源优先、阿里源其次、官方源仅兜底；③ pip 全败时自动解析清华 `/simple/aitun/` 页面，直连下载最新 wheel 并以 `--no-index` 离线安装（aitun wheel 零依赖，完全不碰索引）；④ 最后保留 `aitun.cc/downloads` 原生二进制直连。报错不再静默（`-q` 失败时透传 pip 尾部日志）。手动安装：`pip install aitun -i https://pypi.tuna.tsinghua.edu.cn/simple`，或改用免注册的 cloudflared：`cloudflared tunnel --url http://localhost:5000`。
 
-**Q: 日志里出现 "Cannot run import torch because of system compatibility"？**
-A: 这是 AI Studio 的平台策略 —— PaddlePaddle 专用环境拦截 `import torch` 并打印该横幅。v2.1.1 起服务器的显存清理已改为静默探测（`redirect_stdout/stderr`），但实测真机上该横幅仍可能由平台在更底层（文件描述符级）打印，Python 层拦截不全，属正常现象、无害可忽略。若你在自己远程执行的代码里看到它，说明那段代码用了 torch，AI Studio 上请改用 PaddlePaddle 生态（PaddleNLP / PaddleOCR / PaddleDetection 等），或改在本地运行 torch 代码。
+**Q: 日志里出现 "Cannot run import torch because of system compatibility"，随后单元格报 SystemExit: 1？**
+A: 这是 AI Studio 的平台策略——它会在执行前扫描单元格源码，凡出现特定深度学习框架的明文 import 就打印兼容性横幅并以 SystemExit(1) 中止该单元格。v2.1.5 及更早版本的真正踩雷点在 `/cleanup` 路由的显存清理探测：其 import 语句随服务器源码一起内嵌在「创建服务器代码」（%%writefile）单元格里，导致该单元格每次都被平台中止、`paddle_server.py` 根本写不出来——这正是 Flask「秒退 + 无限重启循环」与 aitun 报 "local service not available" 的真正元凶（服务器文件缺失，启动命令无处可跑）。v2.1.6 已从服务器源码与全部 notebook 单元格中移除该框架明文（跨进程释放 CUDA 缓存本就无效，探测没有存在价值），启动 cell 并新增旧版文件检测与「主动终止」标注。若你在自己远程执行的代码里看到该横幅，说明那段代码 import 了 torch——AI Studio 上请改用 PaddlePaddle 生态（PaddleNLP / PaddleOCR / PaddleDetection 等），或改在本地运行。
 
 **Q: 启动 cell 里 Flask 反复「已停止」重启、aitun 报 "No service is listening on localhost:5000"，却看不到任何报错？**
 A: v2.1.4 及更早版本的启动 cell 把 Flask 子进程的 stdout/stderr 接进了没人读取的管道，启动即崩时 traceback 被整体吞掉，保活循环只会盲目重启。v2.1.5 彻底修复：① 启动前预检 —— `paddle_server.py` 是否在当前目录（跳过「创建服务器代码」%%writefile cell 是最常见原因），以及 flask/psutil 在「子进程视角」能否真正导入：继承环境失败而消毒环境成功时，自动剥离平台注入的 `PYTHONPATH`（external-libraries 里的旧包/坏包会遮蔽 pip 装好的依赖，内核内 `__import__` 探测发现不了这种差异）；② Flask 输出全部落盘 `paddle_server.log`，健康握手 15 秒不通过或进程异常退出时自动打印日志尾部，重启前同样打印。处理方法：换用 v2.1.5 notebook；对旧版本可在启动 cell 前用前台方式 `!python paddle_server.py` 跑 8 秒直接观察崩溃输出。

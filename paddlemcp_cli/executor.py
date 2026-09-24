@@ -339,7 +339,7 @@ class RemoteExecutionEngine(ExecutionEngine):
         self.session = requests.Session()
         self.session.headers.update({
             'Content-Type': 'application/json',
-            'User-Agent': 'PaddleCLI/2.1.5'
+            'User-Agent': 'PaddleCLI/2.1.6'
         })
 
     def health_check(self) -> Dict[str, Any]:

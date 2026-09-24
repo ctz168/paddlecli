@@ -338,7 +338,7 @@ def _sce_respenc(response):
 def index():
     return jsonify({
         "name": "PaddleCLI Server",
-        "version": "2.1.5",
+        "version": "2.1.6",
         "status": "running",
         "uptime_minutes": round((time.time() - start_time) / 60, 2),
         "current_directory": execution_state["current_directory"],
@@ -809,8 +809,9 @@ def cleanup():
     runtime_variables = {}
     gc.collect()
 
-    # 静默探测框架：AI Studio 会拦截 import torch 并打印兼容性横幅（v2.1.1 修复）
-    # Silent framework probe: AI Studio intercepts `import torch` with a banner (fixed in v2.1.1)
+    # 静默探测 paddle（v2.1.6）：平台允许的框架，进程内释放 CUDA 缓存有效，静默避免 import 噪音
+    # Silent paddle probe (v2.1.6): the platform-allowed framework; in-process CUDA
+    # cache release actually works here. Kept quiet to avoid import-time noise.
     import contextlib
     import io as _io
     with contextlib.redirect_stdout(_io.StringIO()), contextlib.redirect_stderr(_io.StringIO()):
@@ -821,12 +822,21 @@ def cleanup():
         except Exception:
             pass
 
-        try:
-            import torch
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        except Exception:
-            pass
+    # v2.1.6 移除了对另一深度学习框架的进程内探测，原因有二：
+    # 1) 真机实测：平台会中止单元格源码中出现该框架明文 import 语句的 cell（打印兼容性
+    #    横幅并抛 SystemExit(1)），导致 notebook 的 %%writefile cell 被杀死、服务器文件
+    #    根本写不出来，进而引发 Flask 无限重启循环；
+    # 2) CUDA 缓存按进程隔离，在服务器进程里 import 它做 empty_cache 本就只对该进程有效，
+    #    而服务器并不会用它跑模型 —— 清理动作本身近乎无效。
+    # 因此本文件以及由它生成的两个 notebook 源码中不再包含任何该框架的明文 token。
+    # v2.1.6 removed the in-process probe of the other DL framework, for two reasons:
+    # (1) Field-tested: the platform aborts any notebook cell whose source contains a
+    #     literal import of that framework (compat banner + SystemExit(1)), which killed
+    #     the %%writefile cell so the server file was never written, which in turn caused
+    #     the endless Flask restart loop;
+    # (2) CUDA caches are per-process, so releasing that framework's cache from the server
+    #     process was a no-op to begin with (the server never runs models with it).
+    # Neither this file nor the generated notebooks contain that framework's literal token.
 
     mem = psutil.virtual_memory()
     return jsonify({
@@ -848,7 +858,7 @@ if __name__ == '__main__':
     print("\n" + "="*60)
     print(t('server_starting'))
     print("="*60)
-    print(t('server_version', version='2.1.5'))
+    print(t('server_version', version='2.1.6'))
     print(t('server_features', features='Heartbeat + Error isolation + Interrupt + Status tracking + SSE streaming'))
     print(t('server_optimization', optimization='Long-task stability + Non-blocking heartbeat + 600s timeout'))
     print("="*60 + "\n")
