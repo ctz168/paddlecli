@@ -15,7 +15,7 @@ from paddlemcp_cli import __version__  # noqa: E402
 
 
 def test_version():
-    assert __version__ == "2.1.4"
+    assert __version__ == "2.1.5"
     try:
         import tomllib  # Python 3.11+
     except ModuleNotFoundError:
@@ -78,7 +78,7 @@ def test_cli_version_flag():
     runner = CliRunner()
     result = runner.invoke(main, ["--version"])
     assert result.exit_code == 0
-    assert "2.1.4" in result.output
+    assert "2.1.5" in result.output
 
 
 def test_cli_info_on_demo():

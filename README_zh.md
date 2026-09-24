@@ -3,7 +3,7 @@
 [![Run on AI Studio](https://img.shields.io/badge/Run%20on-Baidu%20AI%20Studio-2932e1?logo=baidu)](https://aistudio.baidu.com/)
 [![GitHub](https://img.shields.io/badge/GitHub-ctz168%2Fpaddlecli-blue?logo=github)](https://github.com/ctz168/paddlecli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.1.4-green.svg)](https://github.com/ctz168/paddlecli)
+[![Version](https://img.shields.io/badge/version-2.1.5-green.svg)](https://github.com/ctz168/paddlecli)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 
 一个强大的命令行工具，在**百度 AI Studio** 上运行 Jupyter Notebook，支持按 cell 流式输出。
@@ -371,7 +371,10 @@ CLI 的 `exec --json` 已自动完成"信封请求 + respenc 响应 + 纯 ASCII 
 A: v2.1.3 已针对真机实测的 AI Studio 出口网络全面加固。实测特征：`pypi.org` 索引可达但包文件域名 `files.pythonhosted.org` 被掐断（curl 返回 000）、`mirror.baidu.com` 对 aitun 返回 403、清华 / 阿里镜像完全可达且文件走镜像自身域名。因此 notebook 从 v2.1.3 起：① 所有 pip 子进程剥离平台注入的 `PIP_*` 环境变量与 pip.conf（避免 403 的 extra-index 拖垮整个解析），显式传 `--trusted-host`；② 清华源优先、阿里源其次、官方源仅兜底；③ pip 全败时自动解析清华 `/simple/aitun/` 页面，直连下载最新 wheel 并以 `--no-index` 离线安装（aitun wheel 零依赖，完全不碰索引）；④ 最后保留 `aitun.cc/downloads` 原生二进制直连。报错不再静默（`-q` 失败时透传 pip 尾部日志）。手动安装：`pip install aitun -i https://pypi.tuna.tsinghua.edu.cn/simple`，或改用免注册的 cloudflared：`cloudflared tunnel --url http://localhost:5000`。
 
 **Q: 日志里出现 "Cannot run import torch because of system compatibility"？**
-A: 这是 AI Studio 的平台策略 —— PaddlePaddle 专用环境拦截 `import torch` 并打印该横幅。v2.1.1 起服务器的显存清理已改为静默探测，不再刷出该横幅；若你在自己远程执行的代码里看到它，说明那段代码用了 torch，AI Studio 上请改用 PaddlePaddle 生态（PaddleNLP / PaddleOCR / PaddleDetection 等），或改在本地运行 torch 代码。
+A: 这是 AI Studio 的平台策略 —— PaddlePaddle 专用环境拦截 `import torch` 并打印该横幅。v2.1.1 起服务器的显存清理已改为静默探测（`redirect_stdout/stderr`），但实测真机上该横幅仍可能由平台在更底层（文件描述符级）打印，Python 层拦截不全，属正常现象、无害可忽略。若你在自己远程执行的代码里看到它，说明那段代码用了 torch，AI Studio 上请改用 PaddlePaddle 生态（PaddleNLP / PaddleOCR / PaddleDetection 等），或改在本地运行 torch 代码。
+
+**Q: 启动 cell 里 Flask 反复「已停止」重启、aitun 报 "No service is listening on localhost:5000"，却看不到任何报错？**
+A: v2.1.4 及更早版本的启动 cell 把 Flask 子进程的 stdout/stderr 接进了没人读取的管道，启动即崩时 traceback 被整体吞掉，保活循环只会盲目重启。v2.1.5 彻底修复：① 启动前预检 —— `paddle_server.py` 是否在当前目录（跳过「创建服务器代码」%%writefile cell 是最常见原因），以及 flask/psutil 在「子进程视角」能否真正导入：继承环境失败而消毒环境成功时，自动剥离平台注入的 `PYTHONPATH`（external-libraries 里的旧包/坏包会遮蔽 pip 装好的依赖，内核内 `__import__` 探测发现不了这种差异）；② Flask 输出全部落盘 `paddle_server.log`，健康握手 15 秒不通过或进程异常退出时自动打印日志尾部，重启前同样打印。处理方法：换用 v2.1.5 notebook；对旧版本可在启动 cell 前用前台方式 `!python paddle_server.py` 跑 8 秒直接观察崩溃输出。
 
 **Q: 隧道连不上 / URL 失效？**
 A: 隧道 URL 在进程重启后会变化。查看 notebook 最新一次打印的 URL；保活循环会自动重连并打印 `[重启] 新公网 URL`。也可换用 cloudflared：`cloudflared tunnel --url http://localhost:5000`。

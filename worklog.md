@@ -114,3 +114,21 @@
 ### 验证
 - pytest 47/47 全绿；gen_notebooks.py 断言全过（+ _find_entry 标记）
 - 分支测试：monkeypatch shutil.which=None 后 _find_entry() 经 scripts 目录命中 /home/z/.venv/bin/aitun
+
+## 2026-09-25 - PaddleCLI v2.1.5 补丁（Flask 秒退可观测性：预检 + 日志落盘 + 健康握手）
+
+### 真机现象（用户 v2.1.4 反馈）
+- 安装 cell 与 aitun 全部就绪（入口在 conda env bin），但 Flask 子进程 5~35 秒内秒退，aitun 报 "No service is listening on localhost:5000" 后退出，保活循环盲目重启
+- 根因不可见：启动 cell 把 Flask 子进程 stdout/stderr 接进无人读取的 PIPE，启动即崩的 traceback 被整体吞掉
+- 排除项：内核内 `_have('flask')`（真 import）通过、模块级 AST 扫描干净（仅 `app = Flask(__name__)`）、端口无占用、依赖已随 aitun 一起进 conda env
+- 另确认：AI Studio 的 torch 兼容横幅由平台在 fd 级打印，Python 层 redirect 拦截不全（v2.1.1 FAQ 表述修正），横幅无害
+
+### v2.1.5 修复
+1. 启动 cell 预检：paddle_server.py 存在性（跳过 %%writefile cell 是最常见坑）+ flask/psutil 子进程视角导入；继承环境失败而消毒环境成功时自动剥离平台注入的 PYTHONPATH（external-libraries 旧包/坏包遮蔽 pip 依赖），双环境都失败时透传报错并清华源自动补装
+2. Flask 输出落盘 paddle_server.log（追加 + PYTHONUNBUFFERED=1），顺带消除 PIPE 满阻塞隐患
+3. 健康握手：启动后轮询 /health 至多 15s，失败即打印日志尾部并终止；保活循环检测到 Flask 死亡时先打印日志尾部再重启——崩溃原因永不静默
+4. paddlecli.ipynb（all-in-one）同步同套逻辑；版本全套 2.1.4→2.1.5；README FAQ 双语新增 Flask 秒退条目、修正 torch 横幅条目
+5. 沙箱烟测三路径 ALL-PASS（健康握手通过 / 文件缺失预检拦截 / 崩溃服务器日志尾部含 SyntaxError 后终止）；pytest 47/47 全绿
+
+### 遗留
+- 真机根因待确认：用户跑热修 cell（或 v2.1.5 notebook）后，日志尾部会给出确切 traceback
