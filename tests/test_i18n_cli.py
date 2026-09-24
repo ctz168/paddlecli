@@ -16,11 +16,15 @@ from paddlemcp_cli import __version__  # noqa: E402
 
 def test_version():
     assert __version__ == "2.1.0"
-    import tomllib
+    try:
+        import tomllib  # Python 3.11+
+    except ModuleNotFoundError:
+        tomllib = None
     root = Path(__file__).resolve().parent.parent
-    with open(root / "pyproject.toml", "rb") as f:
-        pyproject = tomllib.load(f)
-    assert pyproject["project"]["version"] == __version__
+    if tomllib is not None:
+        with open(root / "pyproject.toml", "rb") as f:
+            pyproject = tomllib.load(f)
+        assert pyproject["project"]["version"] == __version__
     # server version must match too (single source of truth policy)
     server = (root / "paddle_server.py").read_text(encoding="utf-8")
     assert '"version": "%s"' % __version__ in server
