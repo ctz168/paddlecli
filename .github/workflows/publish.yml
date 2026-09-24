@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write   # trusted publishing (OIDC)
-      contents: read
+      contents: write   # create GitHub Release
     steps:
       - uses: actions/checkout@v4
 
@@ -37,10 +37,22 @@ jobs:
       - name: Check metadata
         run: twine check dist/*
 
+      # If the repository secret PYPI_API_TOKEN is set, use it;
+      # otherwise fall back to PyPI trusted publishing (must be
+      # registered once at pypi.org/manage/account/publishing/).
+      - name: Publish to PyPI (API token)
+        if: ${{ secrets.PYPI_API_TOKEN != '' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
       - name: Publish to PyPI (trusted publishing)
+        if: ${{ secrets.PYPI_API_TOKEN == '' }}
         uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Create GitHub Release
+        if: always() && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
