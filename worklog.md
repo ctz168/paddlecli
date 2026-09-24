@@ -36,3 +36,10 @@
 ### 移植中发现并修复的上游问题
 - **i18n 键不对齐**：colabcli 的 zh 字典缺 5 个 exec 相关键（`exec_cell_error`/`exec_envelope_bad`/`exec_envelope_ok`/`exec_bad_c64`/`exec_no_input`），中文模式下 `exec` 命令会回退英文。已补齐并通过 en/zh 键集合一致性测试
 - **版本号统一**：colabcli 曾存在 `__init__`/pyproject/server 三处版本不一致（worklog 有记录）；paddlecli 用 `test_i18n_cli.py::test_version` 锁死 `__init__` = pyproject = server 三处一致
+
+## 2026-09-24 - CI 首跑修正（GitHub Actions）
+
+1. **py3.8/3.10 失败**：`tests/test_i18n_cli.py` 直接 `import tomllib`（3.11+ 标准库）→ 加 try/except 优雅降级，低版本跳过 pyproject 版本校验。修复后 Tests 矩阵 3.8/3.10/3.12 全绿
+2. **publish.yml 启动失败（total_jobs=0）**：step 级 `if:` 不允许 `secrets` 上下文 → 改为 workflow 级 `env.HAS_PYPI_TOKEN` 间接判断
+3. **PyPI 上传步骤失败（预期）**：trusted publishing 需仓库所有者在 pypi.org/manage/account/publishing 登记 pending publisher（GitHub token 无法代办）；登记后重跑 workflow 即可，或改配 `PYPI_API_TOKEN` secret（workflow 已二选一兼容）
+4. **GitHub Release v2.1.0 已创建**（`if: always()` 保证 tag 必出 Release）
