@@ -338,7 +338,7 @@ def _sce_respenc(response):
 def index():
     return jsonify({
         "name": "PaddleCLI Server",
-        "version": "2.1.1",
+        "version": "2.1.2",
         "status": "running",
         "uptime_minutes": round((time.time() - start_time) / 60, 2),
         "current_directory": execution_state["current_directory"],
@@ -848,7 +848,7 @@ if __name__ == '__main__':
     print("\n" + "="*60)
     print(t('server_starting'))
     print("="*60)
-    print(t('server_version', version='2.1.1'))
+    print(t('server_version', version='2.1.2'))
     print(t('server_features', features='Heartbeat + Error isolation + Interrupt + Status tracking + SSE streaming'))
     print(t('server_optimization', optimization='Long-task stability + Non-blocking heartbeat + 600s timeout'))
     print("="*60 + "\n")

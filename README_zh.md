@@ -3,7 +3,7 @@
 [![Run on AI Studio](https://img.shields.io/badge/Run%20on-Baidu%20AI%20Studio-2932e1?logo=baidu)](https://aistudio.baidu.com/)
 [![GitHub](https://img.shields.io/badge/GitHub-ctz168%2Fpaddlecli-blue?logo=github)](https://github.com/ctz168/paddlecli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.1.1-green.svg)](https://github.com/ctz168/paddlecli)
+[![Version](https://img.shields.io/badge/version-2.1.2-green.svg)](https://github.com/ctz168/paddlecli)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 
 一个强大的命令行工具，在**百度 AI Studio** 上运行 Jupyter Notebook，支持按 cell 流式输出。
@@ -367,8 +367,8 @@ CLI 的 `exec --json` 已自动完成"信封请求 + respenc 响应 + 纯 ASCII 
 
 ## ❓ 常见问题
 
-**Q: AI Studio 上运行 notebook cell 时 `aitun` 找不到？**
-A: v2.1.1 起 notebook 已内置自举：安装 cell 自检 aitun，默认源缺包时自动改用官方 PyPI 源重装；启动 cell 在 PATH 找不到入口时依次尝试 `~/.local/bin`、环境 scripts 目录与 `python -m aitun.cli` 模块方式，并在保活循环里自动重试。若仍失败，手动执行：`pip install aitun -i https://pypi.org/simple`，或改用免注册的 cloudflared：`cloudflared tunnel --url http://localhost:5000`。
+**Q: AI Studio 上运行 notebook cell 时 `aitun` 找不到 / 安装失败？**
+A: v2.1.2 起 notebook 全自动自举：安装 cell 自检 aitun，缺包时按 清华 / 阿里云 / 官方 多镜像重装；启动 cell 依次尝试 PATH、`~/.local/bin`、环境 scripts 目录与 `python -m aitun.cli` 模块方式；若 pip 各镜像全败，还会从 `aitun.cc/downloads` 直连下载原生二进制兜底（aitun wheel 内嵌的正是该二进制）。保活循环也会持续重试。手动安装推荐国内镜像：`pip install aitun -i https://pypi.tuna.tsinghua.edu.cn/simple`，或改用免注册的 cloudflared：`cloudflared tunnel --url http://localhost:5000`。
 
 **Q: 日志里出现 "Cannot run import torch because of system compatibility"？**
 A: 这是 AI Studio 的平台策略 —— PaddlePaddle 专用环境拦截 `import torch` 并打印该横幅。v2.1.1 起服务器的显存清理已改为静默探测，不再刷出该横幅；若你在自己远程执行的代码里看到它，说明那段代码用了 torch，AI Studio 上请改用 PaddlePaddle 生态（PaddleNLP / PaddleOCR / PaddleDetection 等），或改在本地运行 torch 代码。

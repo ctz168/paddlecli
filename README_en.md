@@ -3,7 +3,7 @@
 [![Run on AI Studio](https://img.shields.io/badge/Run%20on-Baidu%20AI%20Studio-2932e1?logo=baidu)](https://aistudio.baidu.com/)
 [![GitHub](https://img.shields.io/badge/GitHub-ctz168%2Fpaddlecli-blue?logo=github)](https://github.com/ctz168/paddlecli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.1.1-green.svg)](https://github.com/ctz168/paddlecli)
+[![Version](https://img.shields.io/badge/version-2.1.2-green.svg)](https://github.com/ctz168/paddlecli)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 
 A powerful command-line tool to run Jupyter Notebooks on **Baidu AI Studio** with streaming output per cell.
@@ -367,8 +367,8 @@ The two are wire-compatible: any colabcli or paddlecli server can be driven by e
 
 ## ❓ FAQ
 
-**Q: `aitun` not found in an AI Studio cell?**
-A: Since v2.1.1 the notebooks bootstrap themselves: the install cell self-checks `aitun` and retries via the official PyPI index when the default mirror lacks it; the start cell tries `~/.local/bin`, the env scripts dir and the `python -m aitun.cli` module fallback when the entry is off PATH, and the heartbeat loop keeps retrying. If all else fails, run manually: `pip install aitun -i https://pypi.org/simple`, or switch to the registration-free cloudflared: `cloudflared tunnel --url http://localhost:5000`.
+**Q: `aitun` not found / install fails in an AI Studio cell?**
+A: Since v2.1.2 the notebooks bootstrap themselves end to end: the install cell self-checks `aitun` and retries via Tsinghua / Aliyun / official mirrors; the start cell tries PATH, `~/.local/bin`, the env scripts dir and the `python -m aitun.cli` module fallback; if pip fails on every mirror, it downloads the native binary directly from `aitun.cc/downloads` (the very binary bundled in the aitun wheel). The heartbeat loop keeps retrying too. Recommended manual install on China networks: `pip install aitun -i https://pypi.tuna.tsinghua.edu.cn/simple`, or switch to the registration-free cloudflared: `cloudflared tunnel --url http://localhost:5000`.
 
 **Q: Why do I see "Cannot run import torch because of system compatibility"?**
 A: That is an AI Studio platform policy — PaddlePaddle-only environments intercept `import torch` and print this banner. Since v2.1.1 the server's VRAM cleanup probes frameworks silently, so the banner no longer appears from the server itself. If you see it in your own remote code, that code imports torch — on AI Studio switch to the PaddlePaddle ecosystem (PaddleNLP / PaddleOCR / PaddleDetection, etc.), or run torch code locally instead.

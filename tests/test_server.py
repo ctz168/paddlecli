@@ -47,7 +47,7 @@ def test_index_describes_server():
     r = c.get("/")
     data = r.get_json()
     assert data["name"] == "PaddleCLI Server"
-    assert data["version"] == "2.1.1"
+    assert data["version"] == "2.1.2"
     assert "envelope" in data
     assert "/execute_stream" in data["endpoints"]
 

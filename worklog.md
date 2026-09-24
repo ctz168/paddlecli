@@ -62,3 +62,18 @@
 - pytest 47/47 全绿；本地烟测 /health、/cleanup 通过且服务器日志无横幅
 - gen_notebooks.py 断言：writefile == 磁盘 paddle_server.py（双 notebook）+ 隧道 cell 含 ensure_aitun
 - README FAQ 更新（zh/en）：aitun 自举说明 + torch 横幅成因与替代方案（PaddleNLP/PaddleOCR 等）
+
+## 2026-09-24 - PaddleCLI v2.1.2 补丁（aitun 多镜像 + 二进制直连兜底）
+
+### 问题报告（AI Studio 真机，v2.1.1 自检生效后）
+- 安装 cell 正确报出「默认源未找到 aitun」，但官方 PyPI 源（pypi.org / files.pythonhosted.org）在 AI Studio 网络也不可达 —— 官方源重试不够
+
+### 修复
+1. **多镜像 pip**：百度（AI Studio 默认）→ 清华 TUNA → 阿里云 → 官方，逐个尝试带 `--timeout 30`
+2. **二进制直连兜底 `download_aitun_binary()`**：pip 全败时按平台映射 suffix，从 `aitun.cc/downloads` 直连下载原生二进制（aitun wheel 内嵌的正是它），GitHub releases 兜底，落盘 `~/.local/bin/aitun` + chmod 755；实测无需 `-s`（二进制默认服务器即 aitun.cc:6639）
+3. all-in-one notebook 同步；find_aitun / 心跳重启链路不变
+
+### 实测（沙箱默认源恰为百度镜像，完整复现 AI Studio 场景）
+- 百度源：aitun 不存在（复现根因）→ 清华源：海外 IP 403（国内网络正常）→ 后续源装上 console script
+- ensure_aitun() 返回 `/home/z/.venv/bin/aitun`，真实隧道建立 `https://aitun.cc/7JJJEDAU`，URL 正则命中 —— END-TO-END OK
+- 版本 2.1.1 → 2.1.2 全套统一；pytest 47/47 全绿；README FAQ（zh/en）更新多镜像 + 二进制兜底说明
